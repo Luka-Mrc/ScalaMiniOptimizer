@@ -1,0 +1,17 @@
+# sbt / Scala build artefakti
+target/
+project/target/
+project/project/
+
+# Metals / Bloop (IDE)
+.metals/
+.bloop/
+.bsp/
+
+# IDE
+.idea/
+.vscode/
+
+# OS
+.DS_Store
+Thumbs.db
