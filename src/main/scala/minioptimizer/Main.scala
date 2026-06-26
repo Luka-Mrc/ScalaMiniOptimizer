@@ -2,26 +2,56 @@ package minioptimizer
 
 import minioptimizer.catalog.Catalog
 import minioptimizer.testdata.SampleCatalog
+import minioptimizer.parser.{MiniQL, ParseException}
+import minioptimizer.analysis.{SemanticAnalyzer, AnalysisReport}
 import scala.io.StdIn
 
 
 @main def run(): Unit =
-  val catalog = SampleCatalog.all
+  val catalog  = SampleCatalog.all
+  val analyzer = SemanticAnalyzer(catalog)
 
-  println("ScalaMiniOptimizer — Stage 1 (katalog).")
-  println("Komande: tables | desc <ime> | X")
+  println("ScalaMiniOptimizer — Stage 2 (parser + semanticka analiza).")
+  println("Komande: tables | desc <ime> | <SQL upit> | X")
 
   var running = true
   while running do
-    print("\ncatalog> ")
+    print("\nmini> ")
     Option(StdIn.readLine()) match
       case None | Some("X") => running = false
       case Some(line) =>
-        line.trim.split("\\s+", 2) match
-          case Array("tables")        => printTables(catalog)
-          case Array("desc", name)    => describe(catalog, name)
-          case Array("")              => () // empty line — ignore
-          case _                      => println(s"Nepoznata komanda: $line")
+        val trimmed = line.trim
+        trimmed.split("\\s+", 2) match
+          case Array("")                  => () // empty line — ignore
+          case Array("tables")            => printTables(catalog)
+          case Array("desc", name)        => describe(catalog, name)
+          case _ if isQuery(trimmed)      => runQuery(analyzer, trimmed)
+          case _                          => println(s"Nepoznata komanda: $line")
+
+/** A line is treated as a query if it starts with SELECT (any case). */
+private def isQuery(line: String): Boolean =
+  line.toLowerCase.startsWith("select")
+
+/** Parse and analyze a query, printing the AST + correlations or the first error. */
+private def runQuery(analyzer: SemanticAnalyzer, sql: String): Unit =
+  val parsed =
+    try Right(MiniQL.parse(sql))
+    catch case e: ParseException => Left(e.getMessage)
+
+  parsed match
+    case Left(err) => println(s"Sintaksna greska: $err")
+    case Right(stmt) =>
+      analyzer.analyze(stmt) match
+        case Left(err)     => println(s"Semanticka greska: ${err.message}")
+        case Right(report) => printReport(report)
+
+private def printReport(report: AnalysisReport): Unit =
+  println("OK. AST:")
+  println(s"  ${report.statement}")
+  if report.correlations.nonEmpty then
+    println("Korelisane reference (podupit -> spoljasnji upit):")
+    for c <- report.correlations do
+      println(s"  ${c.qualifier}.${c.column} (dubina ${c.depth})")
 
 /** List the names of all tables in the catalog (sorted for stable output). */
 private def printTables(catalog: Catalog): Unit =
