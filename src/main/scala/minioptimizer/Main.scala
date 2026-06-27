@@ -11,7 +11,7 @@ import scala.io.StdIn
   val catalog  = SampleCatalog.all
   val analyzer = SemanticAnalyzer(catalog)
 
-  println("ScalaMiniOptimizer — Stage 2 (parser + semanticka analiza).")
+  println("ScalaMiniOptimizer — Stage 3 (unresolved/resolved logical plan).")
   println("Komande: tables | desc <ime> | <SQL upit> | X")
 
   var running = true
@@ -46,12 +46,19 @@ private def runQuery(analyzer: SemanticAnalyzer, sql: String): Unit =
         case Right(report) => printReport(report)
 
 private def printReport(report: AnalysisReport): Unit =
-  println("OK. AST:")
+  println("\nAST:")
   println(s"  ${report.statement}")
+  println("\nUnresolved logical plan:")
+  println(indent(report.unresolved.treeString))
+  println("\nResolved logical plan:")
+  println(indent(report.resolved.treeString))
   if report.correlations.nonEmpty then
     println("Korelisane reference (podupit -> spoljasnji upit):")
     for c <- report.correlations do
       println(s"  ${c.qualifier}.${c.column} (dubina ${c.depth})")
+
+private def indent(text: String): String =
+  text.linesIterator.map(line => s"  $line").mkString("\n")
 
 /** List the names of all tables in the catalog (sorted for stable output). */
 private def printTables(catalog: Catalog): Unit =
