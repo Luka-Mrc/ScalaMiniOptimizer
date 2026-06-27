@@ -23,7 +23,7 @@ afterwards it is cached.
 Once started, you get a REPL:
 
 ```
-ScalaMiniOptimizer — Stage 2 (parser + semanticka analiza).
+ScalaMiniOptimizer — Stage 3 (unresolved/resolved logical plan).
 Komande: tables | desc <ime> | <SQL upit> | X
 
 mini> desc radnik
@@ -32,7 +32,16 @@ Tabela: radnik
   god: IntType
   plt: IntType
 mini> SELECT radnik.mbr FROM radnik WHERE radnik.god = 30
-OK. AST: SelectStatement(List(radnik.mbr), List(radnik), List(Equals(radnik.god, Const(IntLit(30)))))
+OK. AST:
+  SelectStatement(List(Column(Some(radnik),mbr)),List(Relation(radnik,None)),Some(Pred(Comparison(Eq,Column(Some(radnik),god),Lit(IntLit(30))))))
+Unresolved logical plan:
+  Project(radnik.mbr)
+    Filter(radnik.god = 30)
+      UnresolvedRelation(radnik)
+Resolved logical plan:
+  Project(radnik.mbr#1)
+    Filter(radnik.god#2 = 30)
+      Scan(radnik)
 mini> X
 ```
 
@@ -58,7 +67,9 @@ ScalaMiniOptimizer/
 └─ src/main/
    ├─ antlr4/MiniQL.g4             GRAMMAR (compiled to lexer/parser at build time)
    └─ scala/minioptimizer/
-      ├─ expressions/DataType.scala   value types (INT/DECIMAL/STRING)
+      ├─ expressions/                  typed logical expressions
+      │  ├─ DataType.scala             value types (INT/DECIMAL/STRING)
+      │  └─ LogicalExpression.scala    unresolved/resolved expressions
       ├─ catalog/                     CATALOG (database schema)
       │  ├─ Column.scala
       │  ├─ Table.scala
@@ -68,6 +79,9 @@ ScalaMiniOptimizer/
       │  ├─ MiniQL.scala              facade: MiniQL text -> SelectStatement
       │  ├─ AstBuilder.scala          parse tree -> AST (visitor)
       │  └─ ParseException.scala      fail-fast syntax errors
+      ├─ plans/logical/                LOGICAL PLANS (unresolved -> resolved)
+      │  ├─ LogicalPlan.scala
+      │  └─ LogicalPlanBuilder.scala
       ├─ analysis/                    SEMANTIC ANALYSIS (scope, types, correlation)
       │  ├─ AnalysisError.scala
       │  └─ SemanticAnalyzer.scala
