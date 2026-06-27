@@ -100,33 +100,42 @@ final class SemanticAnalyzer(catalog: Catalog):
 
       case ArithmeticExpression(op, left, right, _) =>
         for
-          (resolvedLeft, leftType) <- resolveExpression(left, currentOutput, outer, corr)
-          (resolvedRight, rightType) <- resolveExpression(right, currentOutput, outer, corr)
+          leftResolved <- resolveExpression(left, currentOutput, outer, corr)
+          rightResolved <- resolveExpression(right, currentOutput, outer, corr)
+          (resolvedLeft, leftType) = leftResolved
+          (resolvedRight, rightType) = rightResolved
           resultType <- arithResult(leftType, rightType)
         yield ArithmeticExpression(op, resolvedLeft, resolvedRight, resultType) -> resultType
 
       case ComparisonExpression(op, left, right) =>
         for
-          (resolvedLeft, leftType) <- resolveExpression(left, currentOutput, outer, corr)
-          (resolvedRight, rightType) <- resolveExpression(right, currentOutput, outer, corr)
+          leftResolved <- resolveExpression(left, currentOutput, outer, corr)
+          rightResolved <- resolveExpression(right, currentOutput, outer, corr)
+          (resolvedLeft, leftType) = leftResolved
+          (resolvedRight, rightType) = rightResolved
           _ <- compatible("predikatu", leftType, rightType)
         yield ComparisonExpression(op, resolvedLeft, resolvedRight) -> None
 
       case AndExpression(left, right) =>
         for
-          (resolvedLeft, _) <- resolveExpression(left, currentOutput, outer, corr)
-          (resolvedRight, _) <- resolveExpression(right, currentOutput, outer, corr)
+          leftResolved <- resolveExpression(left, currentOutput, outer, corr)
+          rightResolved <- resolveExpression(right, currentOutput, outer, corr)
+          (resolvedLeft, _) = leftResolved
+          (resolvedRight, _) = rightResolved
         yield AndExpression(resolvedLeft, resolvedRight) -> None
 
       case OrExpression(left, right) =>
         for
-          (resolvedLeft, _) <- resolveExpression(left, currentOutput, outer, corr)
-          (resolvedRight, _) <- resolveExpression(right, currentOutput, outer, corr)
+          leftResolved <- resolveExpression(left, currentOutput, outer, corr)
+          rightResolved <- resolveExpression(right, currentOutput, outer, corr)
+          (resolvedLeft, _) = leftResolved
+          (resolvedRight, _) = rightResolved
         yield OrExpression(resolvedLeft, resolvedRight) -> None
 
       case InSubqueryExpression(value, subquery) =>
         for
-          (resolvedValue, valueType) <- resolveExpression(value, currentOutput, outer, corr)
+          valueResolved <- resolveExpression(value, currentOutput, outer, corr)
+          (resolvedValue, valueType) = valueResolved
           resolvedSubquery <- resolveSubquery(subquery, currentOutput, outer, corr)
           subqueryType <- scalarSubqueryType(resolvedSubquery)
           _ <- compatible("IN podupitu", valueType, subqueryType)

@@ -46,11 +46,11 @@ private def runQuery(analyzer: SemanticAnalyzer, sql: String): Unit =
         case Right(report) => printReport(report)
 
 private def printReport(report: AnalysisReport): Unit =
-  println("OK. AST:")
+  println("\nAST:")
   println(s"  ${report.statement}")
-  println("Unresolved logical plan:")
+  println("\nUnresolved logical plan:")
   println(indent(report.unresolved.treeString))
-  println("Resolved logical plan:")
+  println("\nResolved logical plan:")
   println(indent(report.resolved.treeString))
   if report.correlations.nonEmpty then
     println("Korelisane reference (podupit -> spoljasnji upit):")
