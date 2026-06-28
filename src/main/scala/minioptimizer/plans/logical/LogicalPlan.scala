@@ -28,7 +28,7 @@ final case class Scan(tableName: String, alias: Option[String], output: Seq[Attr
     alias.map(a => s"Scan($tableName AS $a)").getOrElse(s"Scan($tableName)")
 
 enum JoinType:
-  case Cross, Inner
+  case Cross, Inner, LeftSemi
 
 final case class Join(
     left: LogicalPlan,
@@ -38,7 +38,10 @@ final case class Join(
 ) extends LogicalPlan:
   override def children: Seq[LogicalPlan] = Seq(left, right)
   override def expressions: Seq[LogicalExpression] = condition.toSeq
-  override def output: Seq[AttributeReference] = left.output ++ right.output
+  override def output: Seq[AttributeReference] =
+    joinType match
+      case JoinType.LeftSemi => left.output
+      case _                 => left.output ++ right.output
   override def simpleString: String =
     condition match
       case Some(c) => s"Join[$joinType](${c.simpleString})"
