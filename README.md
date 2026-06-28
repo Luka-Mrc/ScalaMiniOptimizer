@@ -23,7 +23,7 @@ afterwards it is cached.
 Once started, you get a REPL:
 
 ```
-ScalaMiniOptimizer — Stage 3 (unresolved/resolved logical plan).
+ScalaMiniOptimizer - Stage 4 (resolved + optimized logical plan).
 Komande: tables | desc <ime> | <SQL upit> | X
 
 mini> desc radnik
@@ -39,6 +39,10 @@ Unresolved logical plan:
     Filter(radnik.god = 30)
       UnresolvedRelation(radnik)
 Resolved logical plan:
+  Project(radnik.mbr#1)
+    Filter(radnik.god#2 = 30)
+      Scan(radnik)
+Optimized logical plan:
   Project(radnik.mbr#1)
     Filter(radnik.god#2 = 30)
       Scan(radnik)
@@ -85,6 +89,11 @@ ScalaMiniOptimizer/
       ├─ analysis/                    SEMANTIC ANALYSIS (scope, types, correlation)
       │  ├─ AnalysisError.scala
       │  └─ SemanticAnalyzer.scala
+      ├─ optimizer/                   LOGICAL OPTIMIZER (rules + fixed point execution)
+      │  ├─ Rule.scala
+      │  ├─ RuleExecutor.scala
+      │  ├─ RuleBasedOptimizer.scala
+      │  └─ rules/
       ├─ testdata/SampleCatalog.scala deterministic in-memory test catalog
       └─ Main.scala                   entry point (REPL)
 ```
