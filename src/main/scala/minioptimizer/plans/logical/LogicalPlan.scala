@@ -28,7 +28,7 @@ final case class Scan(tableName: String, alias: Option[String], output: Seq[Attr
     alias.map(a => s"Scan($tableName AS $a)").getOrElse(s"Scan($tableName)")
 
 enum JoinType:
-  case Cross
+  case Cross, Inner
 
 final case class Join(
     left: LogicalPlan,
