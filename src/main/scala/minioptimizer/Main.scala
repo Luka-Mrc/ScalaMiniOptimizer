@@ -4,14 +4,17 @@ import minioptimizer.catalog.Catalog
 import minioptimizer.testdata.SampleCatalog
 import minioptimizer.parser.{MiniQL, ParseException}
 import minioptimizer.analysis.{SemanticAnalyzer, AnalysisReport}
+import minioptimizer.optimizer.RuleBasedOptimizer
+import minioptimizer.plans.logical.LogicalPlan
 import scala.io.StdIn
 
 
 @main def run(): Unit =
   val catalog  = SampleCatalog.all
   val analyzer = SemanticAnalyzer(catalog)
+  val optimizer = RuleBasedOptimizer()
 
-  println("ScalaMiniOptimizer — Stage 3 (unresolved/resolved logical plan).")
+  println("ScalaMiniOptimizer - Stage 4 (resolved + optimized logical plan).")
   println("Komande: tables | desc <ime> | <SQL upit> | X")
 
   var running = true
@@ -25,7 +28,7 @@ import scala.io.StdIn
           case Array("")                  => () // empty line — ignore
           case Array("tables")            => printTables(catalog)
           case Array("desc", name)        => describe(catalog, name)
-          case _ if isQuery(trimmed)      => runQuery(analyzer, trimmed)
+          case _ if isQuery(trimmed)      => runQuery(analyzer, optimizer, trimmed)
           case _                          => println(s"Nepoznata komanda: $line")
 
 /** A line is treated as a query if it starts with SELECT (any case). */
@@ -33,7 +36,7 @@ private def isQuery(line: String): Boolean =
   line.toLowerCase.startsWith("select")
 
 /** Parse and analyze a query, printing the AST + correlations or the first error. */
-private def runQuery(analyzer: SemanticAnalyzer, sql: String): Unit =
+private def runQuery(analyzer: SemanticAnalyzer, optimizer: RuleBasedOptimizer, sql: String): Unit =
   val parsed =
     try Right(MiniQL.parse(sql))
     catch case e: ParseException => Left(e.getMessage)
@@ -43,15 +46,17 @@ private def runQuery(analyzer: SemanticAnalyzer, sql: String): Unit =
     case Right(stmt) =>
       analyzer.analyze(stmt) match
         case Left(err)     => println(s"Semanticka greska: ${err.message}")
-        case Right(report) => printReport(report)
+        case Right(report) => printReport(report, optimizer.optimize(report.resolved))
 
-private def printReport(report: AnalysisReport): Unit =
+private def printReport(report: AnalysisReport, optimized: LogicalPlan): Unit =
   println("\nAST:")
   println(s"  ${report.statement}")
   println("\nUnresolved logical plan:")
   println(indent(report.unresolved.treeString))
   println("\nResolved logical plan:")
   println(indent(report.resolved.treeString))
+  println("\nOptimized logical plan:")
+  println(indent(optimized.treeString))
   if report.correlations.nonEmpty then
     println("Korelisane reference (podupit -> spoljasnji upit):")
     for c <- report.correlations do
