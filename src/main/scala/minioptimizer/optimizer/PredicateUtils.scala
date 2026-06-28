@@ -16,6 +16,9 @@ object PredicateUtils:
   def referencedExprIds(expr: LogicalExpression): Set[Long] =
     referencedAttributes(expr).map(_.exprId)
 
+  def referencedExprIds(exprs: Seq[LogicalExpression]): Set[Long] =
+    exprs.flatMap(referencedExprIds).toSet
+
   def outputExprIds(plan: LogicalPlan): Set[Long] =
     plan.output.map(_.exprId).toSet
 
@@ -24,7 +27,7 @@ object PredicateUtils:
       case _: InSubqueryExpression | _: ExistsExpression => true
       case other                                         => other.children.exists(containsSubquery)
 
-  private def referencedAttributes(expr: LogicalExpression): Set[AttributeReference] =
+  def referencedAttributes(expr: LogicalExpression): Set[AttributeReference] =
     expr match
       case attr: AttributeReference => Set(attr)
       case other                    => other.children.flatMap(referencedAttributes).toSet
