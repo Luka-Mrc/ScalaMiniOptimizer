@@ -1,7 +1,8 @@
 # ScalaMiniOptimizer
 
-An educational SQL query optimizer, based on https://github.com/Gravarica/MiniOptimizer, written in Scala 3. It parses a query (MiniQL), builds a logical plan, applies rule-based and cost-based
-optimizations, and emits a physical plan.
+An educational SQL query optimizer, based on https://github.com/Gravarica/MiniOptimizer, written in Scala 3. It parses a query (MiniQL), builds unresolved/resolved logical plans, applies rule-based logical optimizations, and reorders inner/cross joins with a dynamic-programming optimizer driven by catalog statistics and cardinality/cost estimates.
+
+Stage 5 is a cost-based logical join-order optimization stage. It does not generate physical plans yet.
 
 ## Prerequisites
 
@@ -23,16 +24,17 @@ afterwards it is cached.
 Once started, you get a REPL:
 
 ```
-ScalaMiniOptimizer - Stage 4 (resolved + optimized logical plan).
+ScalaMiniOptimizer - Stage 5 (cost-based logical join-order optimization).
 Komande: tables | desc <ime> | <SQL upit> | X
 
 mini> desc radnik
 Tabela: radnik
-  mbr: IntType (PK)
-  god: IntType
-  plt: IntType
+  rows: 10000
+  mbr: IntType (PK), ndv=10000
+  god: IntType, ndv=46
+  plt: IntType, ndv=600
 mini> SELECT radnik.mbr FROM radnik WHERE radnik.god = 30
-OK. AST:
+AST:
   SelectStatement(List(Column(Some(radnik),mbr)),List(Relation(radnik,None)),Some(Pred(Comparison(Eq,Column(Some(radnik),god),Lit(IntLit(30))))))
 Unresolved logical plan:
   Project(radnik.mbr)
@@ -42,10 +44,18 @@ Resolved logical plan:
   Project(radnik.mbr#1)
     Filter(radnik.god#2 = 30)
       Scan(radnik)
-Optimized logical plan:
+Rule-based optimized logical plan:
   Project(radnik.mbr#1)
     Filter(radnik.god#2 = 30)
       Scan(radnik)
+Join-order optimized logical plan:
+  Project(radnik.mbr#1)
+    Filter(radnik.god#2 = 30)
+      Scan(radnik)
+Estimated join-order optimized logical plan:
+  Project(radnik.mbr#1) [rows=217.39, cost=12.01k]
+    Filter(radnik.god#2 = 30) [rows=217.39, cost=12.00k]
+      Scan(radnik) [rows=10.00k, cost=10.00k]
 mini> X
 ```
 
@@ -77,6 +87,7 @@ ScalaMiniOptimizer/
       ├─ catalog/                     CATALOG (database schema)
       │  ├─ Column.scala
       │  ├─ Table.scala
+      │  ├─ Statistics.scala
       │  └─ Catalog.scala
       ├─ ast/Ast.scala                ABSTRACT SYNTAX TREE (parser output)
       ├─ parser/                      PARSER (ANTLR text -> AST)
@@ -93,7 +104,10 @@ ScalaMiniOptimizer/
       │  ├─ Rule.scala
       │  ├─ RuleExecutor.scala
       │  ├─ RuleBasedOptimizer.scala
+      │  ├─ JoinOrderOptimizer.scala
       │  └─ rules/
+      ├─ cost/                        CARDINALITY/COST ESTIMATION
+      │  └─ CostEstimator.scala
       ├─ testdata/SampleCatalog.scala deterministic in-memory test catalog
       └─ Main.scala                   entry point (REPL)
 ```
