@@ -23,3 +23,10 @@ case class Table(
 
   /** Columns that make up the primary key (may be composite, e.g. radproj = mbr+spr). */
   def primaryKey: Seq[Column] = columns.filter(_.isPrimaryKey)
+
+  /** Primary-key columns are treated as indexed access paths. */
+  def isIndexedColumn(name: String): Boolean =
+    byName.get(name).exists(column => column.isIndexed || column.isPrimaryKey)
+
+  def indexedColumns: Seq[Column] =
+    columns.filter(column => column.isIndexed || column.isPrimaryKey)
