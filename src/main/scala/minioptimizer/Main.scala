@@ -6,7 +6,9 @@ import minioptimizer.parser.{MiniQL, ParseException}
 import minioptimizer.analysis.{SemanticAnalyzer, AnalysisReport}
 import minioptimizer.cost.CostEstimator
 import minioptimizer.optimizer.{JoinOrderOptimizer, RuleBasedOptimizer}
+import minioptimizer.planner.PhysicalPlanner
 import minioptimizer.plans.logical.LogicalPlan
+import minioptimizer.plans.physical.PhysicalPlan
 import scala.io.StdIn
 
 
@@ -16,8 +18,9 @@ import scala.io.StdIn
   val optimizer = RuleBasedOptimizer()
   val estimator = CostEstimator(catalog)
   val joinOrderOptimizer = JoinOrderOptimizer(estimator)
+  val physicalPlanner = PhysicalPlanner(catalog, estimator)
 
-  println("ScalaMiniOptimizer - Stage 5 (cost-based logical join-order optimization).")
+  println("ScalaMiniOptimizer - Stage 6 (physical planning).")
   println("Komande: tables | desc <ime> | <SQL upit> | X")
 
   var running = true
@@ -31,7 +34,7 @@ import scala.io.StdIn
           case Array("")                  => () // empty line — ignore
           case Array("tables")            => printTables(catalog)
           case Array("desc", name)        => describe(catalog, name)
-          case _ if isQuery(trimmed)      => runQuery(analyzer, optimizer, joinOrderOptimizer, estimator, trimmed)
+          case _ if isQuery(trimmed)      => runQuery(analyzer, optimizer, joinOrderOptimizer, physicalPlanner, estimator, trimmed)
           case _                          => println(s"Nepoznata komanda: $line")
 
 /** A line is treated as a query if it starts with SELECT (any case). */
@@ -43,6 +46,7 @@ private def runQuery(
     analyzer: SemanticAnalyzer,
     optimizer: RuleBasedOptimizer,
     joinOrderOptimizer: JoinOrderOptimizer,
+    physicalPlanner: PhysicalPlanner,
     estimator: CostEstimator,
     sql: String
 ): Unit =
@@ -58,12 +62,14 @@ private def runQuery(
         case Right(report) =>
           val ruleOptimized = optimizer.optimize(report.resolved)
           val joinOptimized = joinOrderOptimizer.optimize(ruleOptimized)
-          printReport(report, ruleOptimized, joinOptimized, estimator)
+          val physicalPlan = physicalPlanner.plan(joinOptimized)
+          printReport(report, ruleOptimized, joinOptimized, physicalPlan, estimator)
 
 private def printReport(
     report: AnalysisReport,
     ruleOptimized: LogicalPlan,
     joinOptimized: LogicalPlan,
+    physicalPlan: PhysicalPlan,
     estimator: CostEstimator
 ): Unit =
   println("\nAST:")
@@ -78,6 +84,8 @@ private def printReport(
   println(indent(joinOptimized.treeString))
   println("\nEstimated join-order optimized logical plan:")
   println(indent(estimator.annotatedTreeString(joinOptimized)))
+  println("\nPhysical plan:")
+  println(indent(physicalPlan.treeString))
   if report.correlations.nonEmpty then
     println("Korelisane reference (podupit -> spoljasnji upit):")
     for c <- report.correlations do
@@ -98,6 +106,10 @@ private def describe(catalog: Catalog, name: String): Unit =
       println(s"Tabela: ${t.name}")
       t.statistics.foreach(stats => println(s"  rows: ${stats.rowCount.round}"))
       for c <- t.columns do
-        val pk = if c.isPrimaryKey then " (PK)" else ""
+        val markers = Seq(
+          Option.when(c.isPrimaryKey)("PK"),
+          Option.when(t.isIndexedColumn(c.name))("INDEX")
+        ).flatten
+        val markerText = if markers.nonEmpty then s" (${markers.mkString(", ")})" else ""
         val ndv = t.statsOf(c.name).flatMap(_.distinctCount).map(v => s", ndv=${v.round}").getOrElse("")
-        println(s"  ${c.name}: ${c.dataType}$pk$ndv")
+        println(s"  ${c.name}: ${c.dataType}$markerText$ndv")

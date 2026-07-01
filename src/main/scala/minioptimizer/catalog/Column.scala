@@ -7,5 +7,6 @@ case class Column(
     name: String,
     dataType: DataType,
     isNullable: Boolean = false,
-    isPrimaryKey: Boolean = false
+    isPrimaryKey: Boolean = false,
+    isIndexed: Boolean = false
 )

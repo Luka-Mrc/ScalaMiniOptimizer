@@ -1,8 +1,8 @@
 # ScalaMiniOptimizer
 
-An educational SQL query optimizer, based on https://github.com/Gravarica/MiniOptimizer, written in Scala 3. It parses a query (MiniQL), builds unresolved/resolved logical plans, applies rule-based logical optimizations, and reorders inner/cross joins with a dynamic-programming optimizer driven by catalog statistics and cardinality/cost estimates.
+An educational SQL query optimizer, based on https://github.com/Gravarica/MiniOptimizer, written in Scala 3. It parses a query (MiniQL), builds unresolved/resolved logical plans, applies rule-based logical optimizations, reorders inner/cross joins with a dynamic-programming optimizer, and builds a physical plan with concrete operator choices.
 
-Stage 5 is a cost-based logical join-order optimization stage. It does not generate physical plans yet.
+Stage 6 is a physical planning stage. It chooses TableScan or IndexScan access paths, scan/filter/project operators, and NestedLoop or Hash join strategies from the optimized logical plan.
 
 ## Prerequisites
 
@@ -24,14 +24,14 @@ afterwards it is cached.
 Once started, you get a REPL:
 
 ```
-ScalaMiniOptimizer - Stage 5 (cost-based logical join-order optimization).
+ScalaMiniOptimizer - Stage 6 (physical planning).
 Komande: tables | desc <ime> | <SQL upit> | X
 
 mini> desc radnik
 Tabela: radnik
   rows: 10000
-  mbr: IntType (PK), ndv=10000
-  god: IntType, ndv=46
+  mbr: IntType (PK, INDEX), ndv=10000
+  god: IntType (INDEX), ndv=46
   plt: IntType, ndv=600
 mini> SELECT radnik.mbr FROM radnik WHERE radnik.god = 30
 AST:
@@ -56,6 +56,9 @@ Estimated join-order optimized logical plan:
   Project(radnik.mbr#1) [rows=217.39, cost=12.01k]
     Filter(radnik.god#2 = 30) [rows=217.39, cost=12.00k]
       Scan(radnik) [rows=10.00k, cost=10.00k]
+Physical plan:
+  Project(radnik.mbr#1) [rows=217.39, cost=376.82]
+    IndexScan(radnik)(index=god, predicate=radnik.god#2 = 30) [rows=217.39, cost=365.95]
 mini> X
 ```
 
@@ -76,8 +79,6 @@ ScalaMiniOptimizer/
 ├─ project/
 │  ├─ build.properties             sbt version
 │  └─ plugins.sbt                  sbt-antlr4 plugin
-├─ docs/                           per-stage documentation (C# ↔ Scala)
-│  
 └─ src/main/
    ├─ antlr4/MiniQL.g4             GRAMMAR (compiled to lexer/parser at build time)
    └─ scala/minioptimizer/
@@ -97,6 +98,8 @@ ScalaMiniOptimizer/
       ├─ plans/logical/                LOGICAL PLANS (unresolved -> resolved)
       │  ├─ LogicalPlan.scala
       │  └─ LogicalPlanBuilder.scala
+      ├─ plans/physical/               PHYSICAL PLANS
+      │  └─ PhysicalPlan.scala
       ├─ analysis/                    SEMANTIC ANALYSIS (scope, types, correlation)
       │  ├─ AnalysisError.scala
       │  └─ SemanticAnalyzer.scala
@@ -108,6 +111,8 @@ ScalaMiniOptimizer/
       │  └─ rules/
       ├─ cost/                        CARDINALITY/COST ESTIMATION
       │  └─ CostEstimator.scala
+      ├─ planner/                     PHYSICAL PLANNER
+      │  └─ PhysicalPlanner.scala
       ├─ testdata/SampleCatalog.scala deterministic in-memory test catalog
       └─ Main.scala                   entry point (REPL)
 ```
