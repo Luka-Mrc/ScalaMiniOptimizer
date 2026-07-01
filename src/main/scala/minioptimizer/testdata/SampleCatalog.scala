@@ -7,8 +7,8 @@ import minioptimizer.expressions.DataType
 object SampleCatalog:
 
   /** Helper: make an INT column, optionally a primary key. */
-  private def col(name: String, pk: Boolean = false): Column =
-    Column(name, DataType.IntType, isPrimaryKey = pk)
+  private def col(name: String, pk: Boolean = false, indexed: Boolean = false): Column =
+    Column(name, DataType.IntType, isPrimaryKey = pk, isIndexed = indexed)
 
   private def table(name: String, rowCount: Double, columns: Seq[Column])(
       stats: (String, ColumnStatistics)*
@@ -42,7 +42,7 @@ object SampleCatalog:
     table(
       "radnik",
       rowCount = 10000,
-      columns = Seq(col("mbr", pk = true), col("god"), col("plt"))
+      columns = Seq(col("mbr", pk = true), col("god", indexed = true), col("plt"))
     )(
       "mbr" -> intStats(10000, 10000, 1, 10000),
       "god" -> intStats(10000, 46, 20, 65),
@@ -51,7 +51,7 @@ object SampleCatalog:
     table(
       "projekat",
       rowCount = 800,
-      columns = Seq(col("spr", pk = true), col("ruk"), col("trajanje"))
+      columns = Seq(col("spr", pk = true), col("ruk", indexed = true), col("trajanje"))
     )(
       "spr" -> intStats(800, 800, 1, 800),
       "ruk" -> intStats(800, 200, 1, 10000),
@@ -90,7 +90,7 @@ object SampleCatalog:
     table(
       "B",
       rowCount = 6000,
-      columns = Seq(col("b1", pk = true), col("c1"), col("d1"))
+      columns = Seq(col("b1", pk = true), col("c1", indexed = true), col("d1"))
     )(
       "b1" -> intStats(6000, 6000, 1, 6000),
       "c1" -> intStats(6000, 500, 1, 500),
